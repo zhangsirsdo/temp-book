@@ -1,0 +1,15 @@
+version: '2'
+services:
+  mariadb_setup:
+    image: 'MARIADB_SETUP_IMAGE'
+    network_mode: "bridge"
+    environment:
+        - DB_HOST=MARIADB_HOST_VAR
+        - DB_PORT=MARIADB_PORT_VAR
+        - DB_USER=MARIADB_USER_VAR
+        - DB_PASS=MARIADB_PASS_VAR
+        - KEYSTONE_DB_PASS=KEYSTONE_DB_PASS_VAR
+        - GLANCE_DB_PASS=GLANCE_DB_PASS_VAR
+        - NOVA_DB_PASS=NOVA_DB_PASS_VAR
+        - NEUTRON_DB_PASS=NEUTRON_DB_PASS_VAR
+        - CINDER_DB_PASS=CINDER_DB_PASS_VAR
