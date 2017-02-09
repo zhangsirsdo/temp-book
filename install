@@ -1,0 +1,79 @@
+#!/bin/bash
+# install mariadb and mariadb_setup container
+
+# the ip of this node
+ADVERTISEMENT_HOST=$1
+ADVERTISEMENT_URL=$ADVERTISEMENT_HOST":2379"
+# the cluster address,for example: 186.100.8.174:4567,186.100.8.175:4567,186.100.8.176:4567
+CLUSTER_ADDRESS=$2
+# whether is the first node,true or false
+BE_FIRST_NODE=$3
+WSREP_NEW_CLUSTER=""
+DB_HOST=$ADVERTISEMENT_HOST
+DB_PORT=${DB_PORT:=3306}
+DB_USER=${DB_USER:=root}
+DB_PASS=${DB_PASS:=root}
+KEYSTONE_DB_PASS=root
+GLANCE_DB_PASS=root
+NOVA_DB_PASS=root
+NEUTRON_DB_PASS=root
+CINDER_DB_PASS=root
+
+
+REGISTRY_URL=`curl -L -XGET http://127.0.0.1:2379/v2/keys/endpoints/registry/service|jq -r '.node.value'`
+docker pull $REGISTRY_URL"/docker.io/panubo/mariadb-galera:latest"
+
+compose_path="/etc/docker_compose/"
+if [ ! -x "$compose_path" ]; then
+  mkdir -p $compose_path
+fi
+mysql_path="/data/galera.service/mysql"
+if [ ! -x "$mysql_path" ]; then
+  mkdir -p $mysql_path
+fi
+if [ "$BE_FIRST_NODE"x = "true"x ];then
+  WSREP_NEW_CLUSTER="--wsrep-new-cluster"
+fi
+# generate compose file of mariadb
+mariadb_image=$REGISTRY_URL"/docker.io/panubo/mariadb-galera:latest"
+cp openstack_mariadb_galera_compose_template.yml $compose_path"openstack_mariadb_galera_compose.yml"
+sed -i "s#DB_PASS_VAR#$DB_PASS#g" $compose_path"openstack_mariadb_galera_compose.yml"
+sed -i "s#DB_PORT_VAR#$DB_PORT#g" $compose_path"openstack_mariadb_galera_compose.yml"
+sed -i "s#NODE_ADDRESS_VAR#$ADVERTISEMENT_HOST#g" $compose_path"openstack_mariadb_galera_compose.yml"
+sed -i "s#CLUSTER_ADDRESS_VAR#$CLUSTER_ADDRESS#g" $compose_path"openstack_mariadb_galera_compose.yml"
+sed -i "s#MYSQL_PATH#$mysql_path#g" $compose_path"openstack_mariadb_galera_compose.yml"
+sed -i "s#WSREP-NEW-CLUSTER#$WSREP_NEW_CLUSTER#g" $compose_path"openstack_mariadb_galera_compose.yml"
+sed -i "s#MARIADB_GALERA_IMAGE#$mariadb_image#g" $compose_path"openstack_mariadb_galera_compose.yml"
+# start mariadb container
+docker-compose -f $compose_path"openstack_mariadb_galera_compose.yml" up -d 
+# save params of mariadb to etcd
+#curl -L -XPUT http://$ADVERTISEMENT_URL/v2/keys/configuration/mariadb/host -d value="$DB_HOST"
+#curl -L -XPUT http://$ADVERTISEMENT_URL/v2/keys/configuration/mariadb/port -d value="$DB_PORT"
+#curl -L -XPUT http://$ADVERTISEMENT_URL/v2/keys/configuration/mariadb/user -d value="$DB_USER"
+#curl -L -XPUT http://$ADVERTISEMENT_URL/v2/keys/configuration/mariadb/pass -d value="$DB_PASS"
+
+if [ "$BE_FIRST_NODE"x = "true"x ];then
+  docker pull $REGISTRY_URL"/mariadb_setup:1"
+  # detect whether the mariadb is ready
+  mariadb_status=`ps -ef|grep mysql|grep -v grep |wc -l`
+  while [ $mariadb_status = 0 ]
+  do
+    sleep 1
+    mariadb_status=`ps -ef|grep mysql|grep -v grep |wc -l`
+  done
+  # generate compose file of mariadb_setup
+  mariadb_setup_image=$REGISTRY_URL"/mariadb_setup:1"
+  cp openstack_mariadb_setup_compose_template.yml $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#MARIADB_HOST_VAR#$DB_HOST#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#MARIADB_PORT_VAR#$DB_PORT#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#MARIADB_USER_VAR#$DB_USER#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#MARIADB_PASS_VAR#$DB_PASS#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#KEYSTONE_DB_PASS_VAR#$KEYSTONE_DB_PASS#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#GLANCE_DB_PASS_VAR#$GLANCE_DB_PASS#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#NOVA_DB_PASS_VAR#$NOVA_DB_PASS#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#NEUTRON_DB_PASS_VAR#$NEUTRON_DB_PASS#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#CINDER_DB_PASS_VAR#$CINDER_DB_PASS#g" $compose_path"openstack_mariadb_setup_compose.yml"
+  sed -i "s#MARIADB_SETUP_IMAGE#$mariadb_setup_image#g" $compose_path"openstack_mariadb_galera_compose.yml"
+  # start mariadb_setup container
+  docker-compose -f $compose_path"openstack_mariadb_setup_compose.yml" up -d
+fi
