@@ -1,0 +1,19 @@
+version: '2'
+services:
+  mariadb-galera:
+    image: 'MARIADB_GALERA_IMAGE'
+    network_mode: "bridge"
+    ports:
+        - "DB_PORT_VAR:3306"
+        - "4567:4567/udp"
+        - "4567:4567"
+        - "4568:4568"
+        - "4444:4444"
+    environment:
+        - MYSQL_ROOT_PASSWORD=DB_PASS_VAR
+        - WSREP_NODE_ADDRESS=NODE_ADDRESS_VAR
+        - WSREP_CLUSTER_ADDRESS=gcomm://CLUSTER_ADDRESS_VAR
+    volumes:
+        - 'MYSQL_PATH:/var/lib/mysql:Z'
+    privileged: true
+    command: mysqld WSREP-NEW-CLUSTER
