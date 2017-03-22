@@ -1,3 +1,6 @@
+nova boot --block-device bootindex=0,id=de3c4066-a9ea-4c0e-84c8-92ee9a0aaa7a,source=image,dest=volume,size=20,volume_type=SATA --flavor 1 --nic net-id=6f43f454-027a-45ef-9b42-328195e90d9f test_vm4
+
+
 TEST111
 ===========================
 该文件用来测试和展示书写README的各种markdown语法。GitHub的markdown语法在标准的markdown语法基础上做了扩充，称之为`GitHub Flavored Markdown`。简称`GFM`，GFM在GitHub上有广泛应用，除了README文件外，issues和wiki均支持markdown语法。
